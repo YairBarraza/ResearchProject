@@ -18,9 +18,12 @@ def awgn_channel(bits, ebn0_db, rate):
     noise = np.random.normal(0.0, sigma, size = x.shape)
     y = x  + noise
 
-    return y
+    # LLRs
+    llr = (2.0 / sigma2) * y
+
+    return llr
 
 ''' Testing to ensure different outputs'''
 for trial in range(3):
-    y = awgn_channel(np.zeros(128, dtype = int), 2, 0.5)
-    print(f"Trial {trial + 1}, first 5 samples of y: {y[:5]}")
+    llr = awgn_channel(np.zeros(128, dtype = int), 2, 0.5)
+    print(f"Trial {trial + 1}, first 5 samples of llr: {y[:5]}")

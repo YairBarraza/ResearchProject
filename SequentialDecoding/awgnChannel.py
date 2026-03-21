@@ -18,9 +18,7 @@ def awgn_channel(bits, ebn0_db, rate):
     noise = np.random.normal(0.0, sigma, size = x.shape)
     y = x  + noise
 
-    r_vec = (2/ sigma2) * y
-
-    return r_vec
+    return y
 
 ''' Testing to ensure different outputs'''
 for trial in range(3):

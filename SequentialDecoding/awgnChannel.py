@@ -3,7 +3,7 @@ import numpy as np
 
 def awgn_channel(bits, ebn0_db, rate):
     '''
-    Simulate AWGN channel and return noisy samples
+    Simulate AWGN channel and return llrs
     '''
 
     # BPSK Mapping

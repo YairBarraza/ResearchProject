@@ -1,5 +1,6 @@
 import numpy as np
 
+
 def awgn_channel(bits, ebn0_db, rate):
     '''
     Simulate AWGN channel and return noisy samples
@@ -23,7 +24,34 @@ def awgn_channel(bits, ebn0_db, rate):
 
     return llr
 
+def vector_similarity_test(v1, v2, tol):
+    for i in range(len(v1)):
+        if abs(v1[i] - v2[i]) > tol:
+            return False
+    return True
+
 ''' Testing to ensure different outputs'''
-for trial in range(3):
-    llr = awgn_channel(np.zeros(128, dtype = int), 2, 0.5)
-    print(f"Trial {trial + 1}, first 5 samples of llr: {y[:5]}")
+num_trials = 1000
+bits = np.zeros(128, dtype= int)
+ebn0_db = 2
+rate = 0.5
+
+vec_list = []
+similar_count = 0
+tolerance = 0.1
+
+for trial in range(num_trials):
+    llr = awgn_channel(bits, ebn0_db, rate)
+    
+    # Adjusting the size of the comparison vectors
+    vec = np.round(llr[:5], 1)
+
+    for prev in vec_list:
+        if vector_similarity_test(vec, prev, tolerance):
+            similar_count += 1
+            break
+    vec_list.append(vec)
+
+print(f"Total trials: {num_trials}")
+print(f"Number of similar vector LLR patterns: {similar_count}")
+print(f"Number of unique patterns: {num_trials - similar_count}")

@@ -160,6 +160,13 @@ def user_input_sequence() -> np.ndarray:
     return user_in_matrix
 
 
+def random_sequence(check_node_amount: int) -> np.ndarray:
+    rng = np.random.default_rng()
+    non_repeating_sequence = rng.choice(check_node_amount, size = check_node_amount, replace = False)
+
+    return np.array(non_repeating_sequence, dtype = int)
+
+
 def sequential_sum_product_decoder(priori_matrix: np.ndarray) -> None:
     l_matrix = np.zeros(np.shape(priori_matrix), dtype = float)
     z_matrix = np.zeros(np.shape(priori_matrix), dtype = int)
@@ -229,5 +236,8 @@ def sequential_sum_product_decoder(priori_matrix: np.ndarray) -> None:
         print(f"- Attempted Codeword: {z_matrix}")
         print(f"- Max Iterations: {iteration_count}")
 
-r_codeword = np.array([-0.5, 2.5, -4.0, 5.0, -3.5, 2.5], dtype = float)
-sequential_sum_product_decoder(r_codeword)
+#r_codeword = np.array([-0.5, 2.5, -4.0, 5.0, -3.5, 2.5], dtype = float)
+#sequential_sum_product_decoder(r_codeword)
+
+
+

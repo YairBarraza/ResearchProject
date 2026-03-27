@@ -7,6 +7,7 @@ def awgn_channel(bits, ebn0_db, rate):
     '''
 
     # BPSK Mapping
+    # 1 is assigned -1, 0 is assigned 1
     x = 1 - 2 * bits
 
     # Eb/N0(dB) to sigma2 conversion

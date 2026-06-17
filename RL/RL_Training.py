@@ -1,7 +1,9 @@
 import numpy as np
+from numba import njit
 import time
 np.set_printoptions(precision=2, suppress=True)
 
+@njit
 def awgn_channel(bits: np.ndarray, ebn0_db: float, rate: float) -> np.ndarray:
     x = 1 - 2 * bits
 
@@ -17,16 +19,19 @@ def awgn_channel(bits: np.ndarray, ebn0_db: float, rate: float) -> np.ndarray:
     
     return llr
 
-def training_set(codeword_bits: np.ndarray, snr_set: np.ndarray, size: int, rate: float) -> np.ndarray:
-    training_llrs = np.zeros(size, dtype = np.ndarray)
+@njit
+def training_set(codeword_bits: np.ndarray, snr_set: np.ndarray, amount: int, rate: float) -> np.ndarray:
+    bit_size = np.shape(codeword_bits)[0]
+    training_llrs = np.zeros((amount, bit_size), dtype = np.float64)
     snr_count = 0
-    snr_change = size / np.shape(snr_set)[0]
+    snr_change = amount / np.shape(snr_set)[0]
 
-    for element in range(size):
+    for element in range(amount):
         if (element % snr_change == 0 and element != 0):
             snr_count += 1
         
         corrupted_llr = awgn_channel(codeword_bits, snr_set[snr_count], rate)
+
         training_llrs[element] = corrupted_llr
 
     return training_llrs
@@ -61,6 +66,7 @@ def return_h_matrix(file_name: str) -> None:
 
     return eval(empty_string)
 
+@njit
 def highest_check_degree(h_matrix: np.ndarray) -> int:
     max_check_degree = 0
     rows, columns = np.shape(h_matrix)
@@ -76,19 +82,23 @@ def highest_check_degree(h_matrix: np.ndarray) -> int:
 
     return max_check_degree
 
+@njit
 def get_row(gen_matrix: np.ndarray, index: int) -> np.ndarray:
     row_slice = gen_matrix[index, :]
     return row_slice
 
+@njit
 def get_column(gen_matrix: np.ndarray, index: int) -> np.ndarray:
     column_slice = gen_matrix[:, index]
     return column_slice
 
+@njit
 def get_one_pos(gen_matrix_slice: np.ndarray) -> np.ndarray:
     ones_positions_tuple = np.asarray(gen_matrix_slice == 1).nonzero()
     ones_positions = ones_positions_tuple[0]
     return ones_positions
 
+@njit
 def initiate_m_matrix(p_matrix: np.ndarray, h_matrix: np.ndarray, m_matrix: np.ndarray) -> None:
     j_rows = h_matrix.shape[0]
 
@@ -99,6 +109,7 @@ def initiate_m_matrix(p_matrix: np.ndarray, h_matrix: np.ndarray, m_matrix: np.n
         for i_column in row_one_pos:
             m_matrix[j_row, i_column] = p_matrix[i_column]
 
+@njit
 def modify_z_matrix(l_matrix: np.ndarray, z_matrix: np.ndarray) -> None:
     column_size = l_matrix.shape[0]
 
@@ -111,6 +122,20 @@ def modify_z_matrix(l_matrix: np.ndarray, z_matrix: np.ndarray) -> None:
         else:
             z_matrix[i_column] = np.random.randint(0, 2)
 
+@njit
+def binary_to_decimal(b_matrix: np.ndarray) -> int:
+    total = 0
+    max_bits = np.shape(b_matrix)[0]
+    most_significant_bit = max_bits - 1
+
+    for array_index in range(max_bits):
+        bit = b_matrix[array_index]
+        total += bit * (2 ** most_significant_bit)
+        most_significant_bit -= 1
+
+    return total
+
+@njit
 def local_state_indexes(h_matrix: np.ndarray, global_state: np.ndarray, q_table: np.ndarray) -> np.ndarray:
     action_size = np.shape(h_matrix)[0]
     all_local_state_indexes = np.zeros(action_size, dtype = np.int32)
@@ -123,8 +148,8 @@ def local_state_indexes(h_matrix: np.ndarray, global_state: np.ndarray, q_table:
         for index in check_node_connections:
             temp_local_state[counter] = global_state[index]
             counter += 1
-        
-        all_local_state_indexes[j_check_node] = int("".join(temp_local_state.astype(str)), 2)
+
+        all_local_state_indexes[j_check_node] = binary_to_decimal(temp_local_state)
 
         for local_index in range(np.shape(temp_local_state)[0]):
             temp_local_state[local_index] = 0
@@ -133,12 +158,11 @@ def local_state_indexes(h_matrix: np.ndarray, global_state: np.ndarray, q_table:
 
     return all_local_state_indexes
 
+@njit
 def action_choice(h_matrix: np.ndarray, global_state: np.ndarray, q_table: np.ndarray, epsilon: float) -> int:
-    rng = np.random.default_rng()
-
-    if rng.random() < epsilon:
+    if np.random.rand() < epsilon:
         action_size = np.shape(q_table)[0]
-        action_index = rng.integers(low = 0, high = action_size, size = 1)[0]
+        action_index = np.random.randint(action_size)
         return action_index
     
     else:
@@ -152,6 +176,7 @@ def action_choice(h_matrix: np.ndarray, global_state: np.ndarray, q_table: np.nd
 
         return max_action_index
 
+@njit
 def calculate_e_matrix(gen_matrix: np.ndarray) -> float:
     matrix_tan_h = np.zeros(np.shape(gen_matrix), dtype = float)
     column_size = gen_matrix.shape[0]
@@ -170,6 +195,7 @@ def calculate_e_matrix(gen_matrix: np.ndarray) -> float:
 
     return calculated_num
 
+@njit
 def sequential_m_matrix(r_matrix: np.ndarray, h_matrix: np.ndarray, m_matrix: np.ndarray,
                         e_matrix: np.ndarray, chosen_check: int) -> None:
     check_node_row = get_row(h_matrix, chosen_check)
@@ -186,6 +212,7 @@ def sequential_m_matrix(r_matrix: np.ndarray, h_matrix: np.ndarray, m_matrix: np
 
         m_matrix[chosen_check, i_column] = sum_non_js +  r_matrix[i_column]
 
+@njit
 def sequential_e_matrix(h_matrix: np.ndarray, m_matrix: np.ndarray, e_matrix: np.ndarray, chosen_check: int) -> None:
     row_slice = get_row(h_matrix, chosen_check)
     row_ones = get_one_pos(row_slice)
@@ -202,6 +229,7 @@ def sequential_e_matrix(h_matrix: np.ndarray, m_matrix: np.ndarray, e_matrix: np
 
         e_matrix[chosen_check, i_column] = calculate_e_matrix(i_nots_m_vals)
 
+@njit
 def modify_l_matrix(p_matrix: np.ndarray, l_matrix: np.ndarray, h_matrix: np.ndarray, e_matrix: np.ndarray) -> None:
     column_size = h_matrix.shape[1]
 
@@ -214,7 +242,7 @@ def modify_l_matrix(p_matrix: np.ndarray, l_matrix: np.ndarray, h_matrix: np.nda
             sum_e += e_matrix[j_row_e, i_column]
 
         l_matrix[i_column] = p_matrix[i_column] + sum_e
-
+@njit
 def determine_reward(state: np.ndarray) -> float:
     correct_bits = 0
 
@@ -224,6 +252,7 @@ def determine_reward(state: np.ndarray) -> float:
     
     return correct_bits / float(np.shape(state)[0])
 
+@njit
 def global_to_local_state_index(h_matrix: np.ndarray, global_state: np.ndarray, check_node: int, max_check_degree: int) -> int:
     check_node_connections = get_one_pos(h_matrix[check_node])
     temp_local_state = np.zeros(max_check_degree, dtype = np.int32)
@@ -233,8 +262,9 @@ def global_to_local_state_index(h_matrix: np.ndarray, global_state: np.ndarray, 
         temp_local_state[counter] = global_state[index]
         counter += 1
 
-    return int("".join(temp_local_state.astype(str)), 2)
+    return binary_to_decimal(temp_local_state)
 
+@njit
 def update_q_table(h_matrix: np.ndarray, q_table: np.ndarray, current_state: np.ndarray, next_state: np.ndarray, current_action: int, max_check_degree: int, alpha: float, beta: float, reward: float) -> None:
     current_state_index = global_to_local_state_index(h_matrix, current_state, current_action, max_check_degree)
     next_state_index = global_to_local_state_index(h_matrix, next_state, current_action, max_check_degree)
@@ -243,6 +273,7 @@ def update_q_table(h_matrix: np.ndarray, q_table: np.ndarray, current_state: np.
 
     q_table[current_action][current_state_index] = (1 - alpha) * q_table[current_action][current_state_index] + alpha * (reward + beta * future_action_value)
 
+@njit
 def reinforcement_learning_training(training_llrs: np.ndarray, h_matrix: np.ndarray) -> np.ndarray:
     # Q table will be filled out throughout the whole training
     max_check_degree = highest_check_degree(h_matrix)
@@ -309,15 +340,15 @@ def reinforcement_learning_training(training_llrs: np.ndarray, h_matrix: np.ndar
     # Return optimized policy / Q table
     return q_table
 
-# test_bits = np.zeros(128, dtype = np.int32)
-# test_snr = np.array([1.0, 2.0, 3.0, 4.0, 4.5, 5.0, 6.0], dtype = np.float64)
-# true_training = training_set(test_bits, test_snr, 180, 4./6)
-# true_h_matrix = return_h_matrix("H_Matrix2.txt").astype(np.int32)
-# start_time = time.time()
-# q_table = reinforcement_learning_training(true_training, true_h_matrix)
-# end_time = time.time()
-# print(q_table)
-# print("Time for execution: ", end_time - start_time, "seconds")
+test_bits = np.zeros(6, dtype = np.int32)
+test_snr = np.array([1.0, 2.0, 3.0, 4.0, 4.5, 5.0, 6.0], dtype = np.float64)
+true_training = training_set(test_bits, test_snr, 6, 4./6)
+true_h_matrix = return_h_matrix("H_Matrix1.txt").astype(np.int32)
+start_time = time.time()
+q_table = reinforcement_learning_training(true_training, true_h_matrix)
+end_time = time.time()
+print(q_table)
+print("Time for execution: ", end_time - start_time, "seconds")
 
-# # Tracker for small H matrix: For training set sizes: (180 llrs, 3 seconds), (1800 llrs, 30 seconds), (18000 llrs, 250 seconds)
-# # Tracker for big H matrix: For training set sizes: (180 llrs, 20 seconds)
+# Tracker for small H matrix: For training set sizes: (180 llrs, 3 seconds), (1800 llrs, 30 seconds), (18000 llrs, 250 seconds)
+# Tracker for big H matrix: For training set sizes: (180 llrs, 20 seconds)
